@@ -95,11 +95,6 @@ struct Route
       std::cerr << std::endl;
 
       initialize_center_lane();
-      // print center lane, s with map points
-      for( const auto& [s, point] : center_lane )
-      {
-        std::cerr << "s: " << s << " x: " << point.x << " y: " << point.y << std::endl;
-      }
     }
   }
 
