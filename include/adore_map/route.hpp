@@ -58,7 +58,6 @@ struct Route
   template<typename StartPoint, typename EndPoint>
   Route( const StartPoint& start_point, const EndPoint& end, const Map& reference_map )
   {
-    std::cerr << "make route " << std::endl;
     start.x       = start_point.x;
     start.y       = start_point.y;
     destination.x = end.x;
@@ -83,16 +82,12 @@ struct Route
       // Find the best path between the start and end lanes
       auto lane_id_route = map->lane_graph.get_best_path( start_lane_id, end_lane_id );
 
-      std::cerr << "lane_ids :" << std::endl;
       // Iterate over the route and process each lane
       for( size_t i = 0; i < lane_id_route.size(); ++i )
       {
-        std::cerr << lane_id_route[i] << " ";
         auto lane = map->lanes.at( lane_id_route[i] );
-
         add_route_section( lane->borders.center, *nearest_start_point, *nearest_end_point, lane->left_of_reference );
       }
-      std::cerr << std::endl;
 
       initialize_center_lane();
     }
