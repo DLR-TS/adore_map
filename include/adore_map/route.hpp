@@ -83,15 +83,23 @@ struct Route
       // Find the best path between the start and end lanes
       auto lane_id_route = map->lane_graph.get_best_path( start_lane_id, end_lane_id );
 
+      std::cerr << "lane_ids :" << std::endl;
       // Iterate over the route and process each lane
       for( size_t i = 0; i < lane_id_route.size(); ++i )
       {
+        std::cerr << lane_id_route[i] << " ";
         auto lane = map->lanes.at( lane_id_route[i] );
 
         add_route_section( lane->borders.center, *nearest_start_point, *nearest_end_point, lane->left_of_reference );
       }
+      std::cerr << std::endl;
 
       initialize_center_lane();
+      // print center lane, s with map points
+      for( const auto& [s, point] : center_lane )
+      {
+        std::cerr << "s: " << s << " x: " << point.x << " y: " << point.y << std::endl;
+      }
     }
   }
 
@@ -305,11 +313,11 @@ struct Route
       for( size_t i = 0; i < cpoints.size(); ++i )
       {
         auto point = cpoints[reverse ? cpoints.size() - i - 1 : i];
-
-        double ds = point.s - start_s;
+        // If reversed, local_s should go 0...seg_length in the same direction
+        double local_s = reverse ? ( end_s - point.s ) : ( point.s - start_s );
         if( point.s >= start_s && point.s <= end_s )
         {
-          center_lane[s + ds] = point;
+          center_lane[s + local_s] = point;
         }
       }
       s = get_length();
