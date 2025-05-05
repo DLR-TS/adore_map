@@ -42,7 +42,6 @@ Route::add_route_section( Border& lane_to_add, const MapPoint& start_point, cons
   if( end_point.parent_id == next->lane_id )
     next->end_s = end_point.s;
 
-
   lane_to_sections[next->lane_id] = next;
   sections.push_back( next );
 }

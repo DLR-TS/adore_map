@@ -96,6 +96,10 @@ struct Route
   double
   get_length() const
   {
+    if( center_lane.empty() )
+    {
+      return 0.0;
+    }
     auto center_lane_iter = center_lane.end();
     center_lane_iter--;
     return center_lane_iter->first;
