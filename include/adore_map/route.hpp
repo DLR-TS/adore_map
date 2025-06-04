@@ -14,9 +14,12 @@
 #pragma once
 #include <stdlib.h>
 
+#include <deque>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include <Eigen/Dense>
 
 #include "adore_map/lane.hpp"
 #include "adore_map/map.hpp"
@@ -27,12 +30,13 @@
 #include "adore_math/point.h"
 #include "adore_math/pose.h"
 
+#include <unsupported/Eigen/Splines>
+
 namespace adore
 {
 namespace map
 {
 
-// new struct
 struct RouteSection
 {
   size_t lane_id;
@@ -43,7 +47,8 @@ struct RouteSection
 
 struct Route
 {
-  Route() {};
+  Route() = default;
+
   std::unordered_map<size_t, std::shared_ptr<RouteSection>> lane_to_sections;
   std::map<double, std::shared_ptr<RouteSection>>           s_to_sections;
   std::deque<std::shared_ptr<RouteSection>>                 sections;
@@ -58,6 +63,7 @@ struct Route
   MapPoint             get_map_point_at_s( double distance ) const;
   math::Pose2d         get_pose_at_s( double distance ) const;
   void                 initialize_center_lane();
+  void                 initialize_spline();
 
   template<typename StartPoint, typename EndPoint>
   Route( const StartPoint& start_point, const EndPoint& end, const Map& reference_map );
@@ -67,6 +73,14 @@ struct Route
 
   template<typename TPoint>
   TPoint interpolate_at_s( double distance ) const;
+
+private:
+
+  using Spline1d = Eigen::Spline<double, 1>;
+
+  Spline1d spline_1d_x_;
+  Spline1d spline_1d_y_;
+  bool     spline_initialized_ = false;
 };
 
 template<typename StartPoint, typename EndPoint>
@@ -80,23 +94,19 @@ Route::Route( const StartPoint& start_point, const EndPoint& end, const Map& ref
 
   double route_cumulative_s = 0;
 
-  // Find nearest start and end points using the quadtree
   double min_start_dist      = std::numeric_limits<double>::max();
   auto   nearest_start_point = map->quadtree.get_nearest_point( start, min_start_dist );
 
   double min_end_dist      = std::numeric_limits<double>::max();
   auto   nearest_end_point = map->quadtree.get_nearest_point( end, min_end_dist );
 
-
   if( nearest_start_point && nearest_end_point )
   {
     size_t start_lane_id = nearest_start_point->parent_id;
     size_t end_lane_id   = nearest_end_point->parent_id;
 
-    // Find the best path between the start and end lanes
     auto lane_id_route = map->lane_graph.get_best_path( start_lane_id, end_lane_id );
 
-    // Iterate over the route and process each lane
     for( size_t i = 0; i < lane_id_route.size(); ++i )
     {
       auto lane = map->lanes.at( lane_id_route[i] );
@@ -107,12 +117,11 @@ Route::Route( const StartPoint& start_point, const EndPoint& end, const Map& ref
   }
 }
 
-// get distance to object along route and if the object is within the lane
 template<typename State>
 double
 Route::get_s( const State& state ) const
 {
-  if( !map ) // no map => we cannot proceed
+  if( !map )
   {
     std::cerr << "route needs map!" << std::endl;
     return std::numeric_limits<double>::infinity();
@@ -120,11 +129,9 @@ Route::get_s( const State& state ) const
 
   double min_dist = std::numeric_limits<double>::max();
   auto   nearest  = map->quadtree.get_nearest_point( state, min_dist, [&]( const MapPoint& p ) {
-    // Return true only if p's lane_id is in our route_lane_ids
     return ( lane_to_sections.find( p.parent_id ) != lane_to_sections.end() );
   } );
 
-  // If we didn't find any point that meets the filter
   if( !nearest )
   {
     std::cerr << "no nearest" << std::endl;
@@ -135,9 +142,7 @@ Route::get_s( const State& state ) const
 
   double dist_along_sec = near_sec->start_s < near_sec->end_s ? ( nearest->s - near_sec->start_s ) : near_sec->start_s - nearest->s;
 
-  double route_distance = near_sec->route_s + dist_along_sec;
-
-  return route_distance;
+  return near_sec->route_s + dist_along_sec;
 }
 
 template<typename TPoint>
@@ -146,73 +151,31 @@ Route::interpolate_at_s( double distance ) const
 {
   TPoint result;
 
-  // Early exit for empty or single-point lanes
-  if( center_lane.empty() )
+  if( !spline_initialized_ )
   {
+    std::cerr << "Route spline not initialized.\n";
     return result;
   }
 
-  if( center_lane.size() == 1 )
-  {
-    const auto& sp = center_lane.begin()->second;
-    result.x       = sp.x;
-    result.y       = sp.y;
+  // Evaluate position
+  result.x = spline_1d_x_( distance )( 0 );
+  result.y = spline_1d_y_( distance )( 0 );
 
-    // If T has a member called 'yaw', set it to 0.0
-    if constexpr( requires { result.yaw; } )
-    {
-      result.yaw = 0.0;
-    }
-    return result;
-  }
-
-  // Interpolation logic
-  auto upper_it = center_lane.lower_bound( distance );
-  auto lower_it = upper_it;
-
-  double frac = 0.0;
-
-  if( upper_it == center_lane.end() )
-  {
-    upper_it--;
-    lower_it = std::prev( upper_it );
-    frac     = 1.0;
-  }
-  else if( upper_it == center_lane.begin() )
-  {
-    upper_it++;
-    frac = 0.0;
-  }
-  else
-  {
-    lower_it--;
-    double s1    = lower_it->first;
-    double s2    = upper_it->first;
-    double denom = ( s2 - s1 );
-    frac         = ( std::fabs( denom ) < 1e-9 ) ? 0.0 : ( distance - s1 ) / denom;
-  }
-
-  // Linear Interpolation
-  double x1 = lower_it->second.x;
-  double y1 = lower_it->second.y;
-  double x2 = upper_it->second.x;
-  double y2 = upper_it->second.y;
-
-  result.x = x1 + frac * ( x2 - x1 );
-  result.y = y1 + frac * ( y2 - y1 );
-
-  // Yaw calculation only if T has 'yaw'
+  // If TPoint supports yaw, compute heading from dx/ds and dy/ds
   if constexpr( requires { result.yaw; } )
   {
-    double dx = x2 - x1;
-    double dy = y2 - y1;
-    if( !( std::fabs( dx ) < 1e-9 && std::fabs( dy ) < 1e-9 ) )
-    {
-      result.yaw = std::atan2( dy, dx );
-    }
+    auto dx = spline_1d_x_.template derivatives<1>( distance );
+    auto dy = spline_1d_y_.template derivatives<1>( distance );
+
+    double dx_ds = dx( 1 );
+    double dy_ds = dy( 1 );
+
+    result.yaw = std::atan2( dy_ds, dx_ds );
   }
 
   return result;
 }
+
+
 } // namespace map
 } // namespace adore

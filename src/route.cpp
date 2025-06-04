@@ -6,7 +6,7 @@
  * terms of the Eclipse Public License 2.0 which is available at
  * http://www.eclipse.org/legal/epl-2.0.
  *
- * SPDX-License-Identifier: EPL-2.0
+ * SPDX-License-Identifier: EPL-2.0.
  *
  * Contributors:
  *    Marko Mizdrak
@@ -19,8 +19,7 @@ namespace map
 {
 
 void
-Route::add_route_section( Border& lane_to_add, const MapPoint& start_point, const MapPoint& end_point, bool reverse = false )
-
+Route::add_route_section( Border& lane_to_add, const MapPoint& start_point, const MapPoint& end_point, bool reverse )
 {
   if( lane_to_add.interpolated_points.empty() )
     return;
@@ -100,7 +99,6 @@ Route::initialize_center_lane()
   // Go through each RouteSection, gather center points from that lane in [start_s, end_s]
   for( auto& section : sections )
   {
-
     section->route_s = s;
     s_to_sections[s] = section;
 
@@ -131,7 +129,6 @@ Route::initialize_center_lane()
   }
 
   // filter points that are too close to each other
-  // loop over center_lane keys and remove points that are too close in s
   for( auto it = center_lane.begin(); it != center_lane.end(); )
   {
     auto next_it = std::next( it );
@@ -145,7 +142,34 @@ Route::initialize_center_lane()
       ++it;
     }
   }
+
+  initialize_spline();
 }
+
+void
+Route::initialize_spline()
+{
+  if( center_lane.size() < 2 )
+    return;
+
+  Eigen::VectorXd s( center_lane.size() );
+  Eigen::MatrixXd x( 1, center_lane.size() );
+  Eigen::MatrixXd y( 1, center_lane.size() );
+
+  int i = 0;
+  for( const auto& [key, point] : center_lane )
+  {
+    s( i )    = key;
+    x( 0, i ) = point.x;
+    y( 0, i ) = point.y;
+    ++i;
+  }
+
+  spline_1d_x_        = Eigen::SplineFitting<Spline1d>::Interpolate( x, 3, s );
+  spline_1d_y_        = Eigen::SplineFitting<Spline1d>::Interpolate( y, 3, s );
+  spline_initialized_ = true;
+}
+
 
 } // namespace map
 } // namespace adore
