@@ -173,6 +173,36 @@ Route::interpolate_at_s( double distance ) const
     result.yaw = std::atan2( dy_ds, dx_ds );
   }
 
+  else if constexpr( requires {
+                       result.s;
+                       result.parent_id
+                     } )
+  {
+    auto upper_it = center_lane.lower_bound( distance );
+    auto lower_it = upper_it;
+
+    if( upper_it == center_lane.end() )
+    {
+      upper_it--;
+      lower_it = std::prev( upper_it );
+    }
+    else if( upper_it == center_lane.begin() )
+    {
+      lower_it = upper_it;
+    }
+    else
+    {
+      lower_it = std::prev( upper_it );
+    }
+
+    double dist_to_lower = std::abs( distance - lower_it->first );
+    double dist_to_upper = std::abs( distance - upper_it->first );
+    auto   nearest_it    = ( dist_to_lower < dist_to_upper ) ? lower_it : upper_it;
+
+    result.parent_id = nearest_it->second.parent_id;
+    result.s         = distance;
+  }
+
   return result;
 }
 
