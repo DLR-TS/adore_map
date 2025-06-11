@@ -19,17 +19,17 @@
 
 #include <adore_map/map.hpp>
 
-namespace adore
-{
-namespace map
-{
-// Convert a MapPoint to pixel coordinates
-cv::Point2i map_point_to_pixel( const MapPoint& point, const MapPoint& origin, int image_size, double pixel_size );
+// namespace adore
+// {
+// namespace map
+// {
+// // Convert a MapPoint to pixel coordinates
+// cv::Point2i map_point_to_pixel( const MapPoint& point, const MapPoint& origin, int image_size, double pixel_size );
 
-// Function to draw lane centerlines
-cv::Mat raster_lane_centerlines( const Map& map, const MapPoint& center, int image_size, double pixel_size );
+// // Function to draw lane centerlines
+// cv::Mat raster_lane_centerlines( const Map& map, const MapPoint& center, int image_size, double pixel_size );
 
-// Function to rasterize lane center distances
-cv::Mat raster_lane_center_distances( const Map& map, const MapPoint& center, int image_size, double pixel_size );
-} // namespace map
-} // namespace adore
+// // Function to rasterize lane center distances
+// cv::Mat raster_lane_center_distances( const Map& map, const MapPoint& center, int image_size, double pixel_size );
+// } // namespace map
+// } // namespace adore
