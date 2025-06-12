@@ -57,6 +57,7 @@ struct Route
   std::deque<MapPoint> get_shortened_route( double start_s, double desired_length ) const;
   MapPoint             get_map_point_at_s( double distance ) const;
   math::Pose2d         get_pose_at_s( double distance ) const;
+  double               get_curvature_at_s( double s ) const;
   void                 initialize_center_lane();
 
   template<typename StartPoint, typename EndPoint>

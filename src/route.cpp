@@ -86,6 +86,19 @@ Route::get_pose_at_s( double distance ) const
   return interpolate_at_s<math::Pose2d>( distance );
 }
 
+double
+Route::get_curvature_at_s( double s ) const
+{
+  const double delta_s     = 0.1;
+  auto         pose_before = get_pose_at_s( s - delta_s );
+  auto         pose_after  = get_pose_at_s( s + delta_s );
+
+  double delta_yaw = adore::math::normalize_angle( pose_after.yaw - pose_before.yaw );
+  double curvature = delta_yaw / ( 2.0 * delta_s );
+
+  return curvature;
+}
+
 void
 Route::initialize_center_lane()
 {
