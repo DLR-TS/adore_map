@@ -128,7 +128,7 @@ Route::get_s( const State& state ) const
   // If we didn't find any point that meets the filter
   if( !nearest )
   {
-    std::cerr << "no nearest" << std::endl;
+    std::cerr << "no nearest     state x " << state.x << " y " << state.y << std::endl;
     return std::numeric_limits<double>::infinity();
   }
 
