@@ -215,6 +215,7 @@ Route::interpolate_at_s( double distance ) const
   if constexpr( requires {
                   result.s;
                   result.parent_id;
+                  result.max_speed;
                 } )
   {
     auto upper_it = center_lane.lower_bound( distance );
@@ -239,6 +240,7 @@ Route::interpolate_at_s( double distance ) const
     auto   nearest_it    = ( dist_to_lower < dist_to_upper ) ? lower_it : upper_it;
 
     result.parent_id = nearest_it->second.parent_id;
+    result.max_speed = nearest_it->second.max_speed;
     result.s         = distance;
   }
 
